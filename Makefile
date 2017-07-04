@@ -112,6 +112,15 @@ USER_VARS += SHIMPATH
 USER_VARS += SYSCONFDIR
 USER_VARS += PAUSEDESTDIR
 
+# These targets must be in the form "target::" to allow the
+# build check code to be removed and generated for them at the correct
+# point.
+BUILD_CHECK_TARGETS += check
+BUILD_CHECK_TARGETS += check-go-static
+BUILD_CHECK_TARGETS += check-go-test
+BUILD_CHECK_TARGETS += clean
+BUILD_CHECK_TARGETS += coverage
+BUILD_CHECK_TARGETS += $(TARGET)
 
 V              = @
 Q              = $(V:1=)
@@ -154,30 +163,48 @@ endef
 
 export GENERATED_CODE
 
+define BUILD_CHECK_CODE
+package main
+
+// XXX: This file is a sign that you should not run "go build" directly.
+//
+// XXX: Please just run 'make'.
+
+import (
+	"ERROR: use 'go get -d' rather than 'go get'"
+	"ERROR: use 'make' rather than 'go build'"
+)
+endef
+
+export BUILD_CHECK_CODE
+
+BUILD_CHECK_FILE = error-run-make-not-go-build.go
 
 GENERATED_FILES += config-generated.go
 
 config-generated.go:
 	$(QUIET_GENERATE)echo "$$GENERATED_CODE" >$@
 
-$(TARGET): $(SOURCES) $(GENERATED_FILES) Makefile | show-summary
+$(TARGET):: remove-build-check-file $(SOURCES) $(GENERATED_FILES) Makefile | show-summary
 	$(QUIET_BUILD)go build -i -o $@ .
 
 pause: pause/pause.o
 	$(QUIET_BUILD)$(CC) -o pause/pause pause/*.o $(CFLAGS) $(LIBS)
 
 .PHONY: \
+	$(BUILD_CHECK_FILE) \
 	check \
 	check-go-static \
 	check-go-test \
 	coverage \
 	default \
 	install \
+	really-clean \
 	show-header \
 	show-summary \
 	show-variables
 
-$(TARGET).coverage: $(SOURCES) $(GENERATED_FILES) Makefile
+$(TARGET).coverage:: $(SOURCES) $(GENERATED_FILES) Makefile
 	$(QUIET_TEST)go test -o $@ -covermode count
 
 $(CONFIG): $(CONFIG_IN)
@@ -194,18 +221,20 @@ $(CONFIG): $(CONFIG_IN)
 		-e "s|@GLOBALLOGPATH@|$(GLOBALLOGPATH)|g" \
 		$< > $@
 
-generate-config: $(CONFIG)
+generate-config:: $(CONFIG)
 
-check: check-go-static check-go-test
+check:: remove-build-check-file check-go-static check-go-test
 
-check-go-test:
+check-go-test::
+	@rm -f $(BUILD_CHECK_FILE)
 	$(QUIET_TEST).ci/go-test.sh
 
-check-go-static:
+check-go-static::
+	@rm -f $(BUILD_CHECK_FILE)
 	$(QUIET_CHECK).ci/go-static-checks.sh $(GO_STATIC_CHECKS_ARGS)
 	$(QUIET_CHECK).ci/go-no-os-exit.sh
 
-coverage:
+coverage:: remove-build-check-file
 	$(QUIET_TEST).ci/go-test.sh html-coverage
 
 install: default
@@ -215,9 +244,11 @@ install: default
 		install -D pause/pause $(PAUSEDESTDIR); \
 	fi
 
-clean:
+really-clean: remove-build-check-file
 	$(QUIET_CLEAN)rm -f $(TARGET) $(CONFIG) $(GENERATED_FILES)
 	$(QUIET_CLEAN)rm -f pause/*.o pause/pause
+
+clean:: really-clean
 
 show-usage: show-header
 	@printf "• Overview:\n"
@@ -235,6 +266,7 @@ show-usage: show-header
 	@printf "\tgenerate-config : create configuration file\n"
 	@printf "\tinstall         : install files\n"
 	@printf "\tpause           : build pause binary\n"
+	@printf "\treally-clean    : clean fully (removes auto-generated built-check file)\n"
 	@printf "\tshow-summary    : show install locations\n"
 	@printf "\n"
 
@@ -261,3 +293,11 @@ show-summary: show-header
 	@printf "  binary install path (DESTTARGET) : %s\n" $(DESTTARGET)
 	@printf "  config install path (DESTCONFIG) : %s\n" $(DESTCONFIG)
 	@printf "\n"
+
+remove-build-check-file:
+	@rm -f $(BUILD_CHECK_FILE)
+
+# Append comands to run after standard targets commands
+# This rule must appear after all others.
+$(BUILD_CHECK_TARGETS)::
+	@echo "$$BUILD_CHECK_CODE" >$(BUILD_CHECK_FILE)

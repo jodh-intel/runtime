@@ -2,3 +2,4 @@
 /coverage.html
 /config-generated.go
 /config/configuration.toml
+/error-run-make-not-go-build.go
