@@ -123,7 +123,7 @@ func (c *Container) ID() string {
 }
 
 // Pod returns the pod handler related to this container.
-func (c *Container) Pod() *Pod {
+func (c *Container) Pod() VCPod {
 	return c.pod
 }
 
@@ -222,7 +222,7 @@ func (c *Container) fetchMounts() ([]Mount, error) {
 }
 
 // fetchContainer fetches a container config from a pod ID and returns a Container.
-func fetchContainer(pod *Pod, containerID string) (*Container, error) {
+func fetchContainer(pod *Pod, containerID string) (VCContainer, error) {
 	if pod == nil {
 		return nil, errNeedPod
 	}
@@ -346,7 +346,7 @@ func newContainers(pod *Pod, contConfigs []ContainerConfig) ([]*Container, error
 }
 
 // createContainer creates and start a container inside a Pod.
-func createContainer(pod *Pod, contConfig ContainerConfig) (*Container, error) {
+func createContainer(pod *Pod, contConfig ContainerConfig) (VCContainer, error) {
 	if pod == nil {
 		return nil, errNeedPod
 	}
