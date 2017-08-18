@@ -20,10 +20,14 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/containers/virtcontainers/pkg/oci"
+	"github.com/stretchr/testify/assert"
 )
 
 var testPID = 100
 var testStrPID = fmt.Sprintf("%d", testPID)
+var testConsole = "/dev/pts/999"
 
 func testCreateCgroupsFilesSuccessful(t *testing.T, cgroupsPathList []string, pid int) {
 	if err := createCgroupsFiles(cgroupsPathList, pid); err != nil {
@@ -93,5 +97,53 @@ func TestCreatePIDFileEmptyPathSuccessful(t *testing.T) {
 	file := ""
 	if err := createPIDFile(file, testPID); err != nil {
 		t.Fatalf("This test should not fail (pidFilePath %q, pid %d)", file, testPID)
+	}
+}
+
+func TestCreateInvalidArgs(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
+
+	runtimeConfig, err := newRuntimeConfig(tmpdir, testConsole)
+	assert.NoError(t, err)
+
+	bundlePath := filepath.Join(tmpdir, "bundle")
+
+	err = os.MkdirAll(bundlePath, testDirMode)
+	assert.NoError(t, err)
+
+	err = makeOCIBundle(bundlePath)
+	assert.NoError(t, err)
+
+	pidFilePath := filepath.Join(tmpdir, "pidfile.txt")
+
+	type testData struct {
+		containerID   string
+		bundlePath    string
+		console       string
+		pidFilePath   string
+		detach        bool
+		runtimeConfig oci.RuntimeConfig
+		expectFail    bool
+	}
+
+	data := []testData{
+		{"", "", "", "", false, oci.RuntimeConfig{}, true},
+		{"", "", "", "", true, oci.RuntimeConfig{}, true},
+		{"foo", "", "", "", true, oci.RuntimeConfig{}, true},
+		{testContainerID, bundlePath, testConsole, pidFilePath, false, runtimeConfig, true},
+		{testContainerID, bundlePath, testConsole, pidFilePath, true, runtimeConfig, true},
+	}
+
+	for _, d := range data {
+		err := create(d.containerID, d.bundlePath, d.console, d.pidFilePath, d.detach, d.runtimeConfig)
+		if d.expectFail {
+			assert.Error(t, err, "%+v", d)
+			// FIXME:
+			fmt.Printf("DEBUG: TestCreateInvalidArgs: d: %+v, err: %v\n", d, err)
+		} else {
+			assert.NoError(t, err, "%+v", d)
+		}
 	}
 }
