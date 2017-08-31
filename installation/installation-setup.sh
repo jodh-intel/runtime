@@ -191,6 +191,7 @@ function qemu_lite_setup {
 		qemu_lite_opts+=" --prefix=\"${prefix_dir}\""
 		qemu_lite_opts+=" --datadir=\"${prefix_dir}/share/qemu-lite\""
 		qemu_lite_opts+=" --libdir=\"${prefix_dir}/lib64/qemu-lite\""
+		qemu_lite_opts+=" --with-pkgversion=\"${qemu_lite_version}\""
 		qemu_lite_opts+=" --libexecdir=\"${prefix_dir}/libexec/qemu-lite\""
 
 		if [ ! -e "$qemu_lite_file" ]
