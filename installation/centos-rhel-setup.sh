@@ -143,6 +143,12 @@ qemu_lite_setup
 
 popd
 
+# If RHEL Install container-selinux from CentOS repo
+if [ "${os_distribution}" = rhel ]
+then
+    sudo rpm -Uvh http://mirror.centos.org/centos/7/extras/x86_64/Packages/container-selinux-2.9-4.el7.noarch.rpm
+fi
+
 # Install docker
 sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 sudo yum -y install docker-ce
@@ -165,6 +171,10 @@ cat <<EOF|sudo tee "${service_dir}/clear-containers.conf"
 ExecStart=
 ExecStart=/usr/bin/dockerd -D --add-runtime cc-runtime=/usr/bin/cc-runtime --default-runtime=cc-runtime
 EOF
+
+# Add the current user to docker group
+sudo usermod -aG docker $USER
+newgrp docker
 
 sudo systemctl daemon-reload
 sudo systemctl restart docker

@@ -44,7 +44,7 @@ $ cd runtime
 4. Run the installation script:
 
 ```
-$ script -efc ./installation/centos+rhel-setup.sh
+$ script -efc ./installation/centos-rhel-setup.sh
 
 ```
 
